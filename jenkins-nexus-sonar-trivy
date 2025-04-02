@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven'
+    }
+
+    environment {
+        SONAR_HOME = tool 'sonar-scanner'  // fixed variable name capitalization
+    }
+
+    stages {
+        stage('Git Clone') {
+            steps {
+                echo 'Cloning the repository...'
+                git branch: 'main', url: 'https://github.com/Studytime098123/FullStack-Blogging-App.git'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                echo 'Running tests...'
+                sh 'mvn test'
+            }
+        }
+
+        stage('Sonar Scanner') {
+            steps {
+                echo 'Running SonarQube analysis...'
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        ${SONAR_HOME}/bin/sonar-scanner \
+                        -Dsonar.projectName=bloggingApp \
+                        -Dsonar.projectKey=bloggingApp \
+                        -Dsonar.java.binaries=target \
+                        
+                        
+                        echo "Using Sonar Scanner at ${SONAR_HOME}"
+                    '''
+                }
+            }
+        }
+        stage('running trivy') {
+            steps {
+                echo 'Running trivy...'
+                sh '''
+                trivy fs --format table -o fsreport.html .
+                '''
+            }
+        }
+        stage('nexus') {
+            steps {
+                echo 'Running nexus'
+                
+                
+                withMaven(globalMavenSettingsConfig: '', jdk: '', maven: 'maven', mavenSettingsConfig: 'nexus-repo', traceability: true) {
+                sh "mvn deploy"
+    
+               }
+                
+            }
+        }
+        
+        
+    }
+}
