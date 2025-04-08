@@ -1,55 +1,75 @@
 pipeline {
     agent any
+
     tools {
         maven 'maven'
     }
 
     stages {
-        stage('git checkout') {
+        stage('Git Checkout') {
             steps {
-                echo 'ggit checkout'
+                echo 'Checking out code from GitHub...'
                 git branch: 'main', changelog: false, poll: false, url: 'https://github.com/Studytime098123/FullStack-Blogging-App.git'
             }
         }
-        
-        stage('mvn') {
+
+        stage('Build with Maven') {
             steps {
-                echo 'mvn'
+                echo 'Building project with Maven...'
                 sh "mvn package"
             }
         }
-        
-        stage('docker') {
-            steps {
-                echo 'running docker'
-                script {
-                    
 
-            withDockerRegistry(credentialsId: 'docker-token') {
-                    sh '''
-                    docker build -t studytime098123/blogging:${BUILD_NUMBER} .
-                    docker push studytime098123/blogging:${BUILD_NUMBER}
-                     
-                    '''
-                             }
-                         }
-                  }
+        stage('Build & Push Docker Image') {
+            steps {
+                echo 'Building & pushing Docker image...'
+                script {
+                    withDockerRegistry(credentialsId: 'docker-token') {
+                        sh """
+                        docker build -t studytime098123/blogging:${BUILD_NUMBER} .
+                        docker push studytime098123/blogging:${BUILD_NUMBER}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Scan Docker Image using Trivy') {
+            steps {
+                echo 'Scanning Docker image for vulnerabilities using Trivy...'
+  //             sh " trivy image studytime098123/blogging:${BUILD_NUMBER} | tee blogging.log "
+                 sh " trivy image studytime098123/blogging:${BUILD_NUMBER} "
+                sh  " trivy image --format table -o blogging.html studytime098123/blogging:${BUILD_NUMBER} | tee blogging.log "
+            }
         }
         
-        stage('scaanning image using trivy') {
+        stage('Push Docker Image') {
             steps {
-                echo 'scanningimage'
-                sh "trivy image --format table -o blogging.html studytime098123/blogging:${BUILD_NUMBER} "
+                echo 'pushing Docker image...'
+                script {
+                    withDockerRegistry(credentialsId: 'docker-token') {
+                        sh """
+                        docker push studytime098123/blogging:${BUILD_NUMBER}
+                        """
+                    }
+                }
             }
         }
         
     }
 
+    post {
+        success {
+            echo 'Build completed successfully!'
+        }
 
-post {
-    always {
-        archiveArtifacts artifacts: 'blogging.html', fingerprint: true
+        failure {
+            echo 'Build failed. Please check the logs and fix the errors.'
+        }
+
+        always {
+            echo 'Archiving Trivy report...'
+            archiveArtifacts artifacts: 'blogging.html', fingerprint: true
+        }
     }
-}
-
 }
