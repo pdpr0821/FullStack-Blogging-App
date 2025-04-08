@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven'
+    }
+
+    stages {
+        stage('git checkout') {
+            steps {
+                echo 'ggit checkout'
+                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/Studytime098123/FullStack-Blogging-App.git'
+            }
+        }
+        
+        stage('mvn') {
+            steps {
+                echo 'mvn'
+                sh "mvn package"
+            }
+        }
+        
+        stage('docker') {
+            steps {
+                echo 'running docker'
+                script {
+                    
+
+            withDockerRegistry(credentialsId: 'docker-token') {
+                    sh '''
+                    docker build -t studytime098123/blogging:${BUILD_NUMBER} .
+                    docker push studytime098123/blogging:${BUILD_NUMBER}
+                     
+                    '''
+                             }
+                         }
+                  }
+        }
+        
+        stage('scaanning image using trivy') {
+            steps {
+                echo 'scanningimage'
+                sh "trivy image --format table -o blogging.html studytime098123/blogging:${BUILD_NUMBER} "
+            }
+        }
+        
+    }
+
+
+post {
+    always {
+        archiveArtifacts artifacts: 'blogging.html', fingerprint: true
+    }
+}
+
+}
