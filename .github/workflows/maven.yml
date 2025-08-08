@@ -29,7 +29,11 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --file pom.xml
 
-    - name: Docker_Build
-      run: |
-        docker --version
-        docker build -t smaple_image:latest .
+    - name: Docker_Version
+      run: docker --version
+
+    - name: Docker_build
+      run: docker build -t sample:latest .
+
+    - name: Docker_run
+      run: docker run -d --name new_cont1 sample:latest
