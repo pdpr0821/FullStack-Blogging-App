@@ -31,5 +31,7 @@ jobs:
 
     - name: Docker_Build
       run: |
+        sudo usrmod -aG docker $USER
+        newgrp docker
         docker --version
         docker build -t smaple_image:latest .
